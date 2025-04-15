@@ -1,59 +1,113 @@
-// Configuration
-const API_BASE_URL = '/api/trade';
-const API_KEY = process.env.CLIENT_API_KEY; // Different from server API key
-const USER_TOKEN = localStorage.getItem('userToken') || generateUserToken();
+document.addEventListener('DOMContentLoaded', function() {
+  const API_URL = '/api/trade';
+  const startBtn = document.getElementById('startBot');
+  const stopBtn = document.getElementById('stopBot');
+  const statusEl = document.getElementById('botStatus');
+  const historyTable = document.getElementById('tradeHistory').querySelector('tbody');
 
-// Generate a unique user token if none exists
-function generateUserToken() {
-  const token = crypto.randomUUID();
-  localStorage.setItem('userToken', token);
-  return token;
-}
+  let botRunning = false;
+  let pollInterval;
 
-// Secure API request function
-async function makeSecureRequest(method, data = {}) {
-  try {
-    const response = await fetch(API_BASE_URL, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-        'X-User-ID': USER_TOKEN
-      },
-      body: method !== 'GET' ? JSON.stringify(data) : undefined
+  // Start bot
+  startBtn.addEventListener('click', async function() {
+    if (botRunning) return;
+    
+    const config = {
+      action: 'start',
+      tradingPair: document.getElementById('tradingPair').value,
+      investment: document.getElementById('investment').value,
+      upperPrice: document.getElementById('upperPrice').value,
+      lowerPrice: document.getElementById('lowerPrice').value,
+      gridLevels: document.getElementById('gridLevels').value
+    };
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        botRunning = true;
+        updateStatus(true);
+        startPolling();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to start bot');
+    }
+  });
+
+  // Stop bot
+  stopBtn.addEventListener('click', async function() {
+    if (!botRunning) return;
+    
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        botRunning = false;
+        updateStatus(false);
+        stopPolling();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to stop bot');
+    }
+  });
+
+  // Update UI status
+  function updateStatus(running) {
+    statusEl.textContent = running ? 'Running' : 'Idle';
+    statusEl.className = running ? 'running' : '';
+    startBtn.disabled = running;
+    stopBtn.disabled = !running;
+  }
+
+  // Poll for updates
+  function startPolling() {
+    updateHistory();
+    pollInterval = setInterval(updateHistory, 5000);
+  }
+
+  function stopPolling() {
+    clearInterval(pollInterval);
+  }
+
+  async function updateHistory() {
+    try {
+      const response = await fetch(`${API_URL}?action=history`);
+      const data = await response.json();
+      
+      if (data.success) {
+        renderHistory(data.history);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  }
+
+  function renderHistory(history) {
+    historyTable.innerHTML = '';
+    
+    history.forEach(trade => {
+      const row = historyTable.insertRow();
+      row.innerHTML = `
+        <td>${new Date(trade.time).toLocaleString()}</td>
+        <td class="${trade.type.toLowerCase()}">${trade.type}</td>
+        <td>${parseFloat(trade.price).toFixed(2)}</td>
+        <td>${parseFloat(trade.amount).toFixed(6)}</td>
+        <td>${trade.profit ? parseFloat(trade.profit).toFixed(2) : '-'}</td>
+      `;
     });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Request failed:', error);
-    throw error;
   }
-}
-
-// Updated bot control functions
-async function startBot() {
-  const config = {
-    tradingPair: document.getElementById('tradingPair').value,
-    investment: document.getElementById('investment').value,
-    upperPrice: document.getElementById('upperPrice').value,
-    lowerPrice: document.getElementById('lowerPrice').value,
-    gridLevels: document.getElementById('gridLevels').value,
-    action: 'start'
-  };
-
-  try {
-    const result = await makeSecureRequest('POST', config);
-    if (result.success) {
-      updateBotStatus(true);
-      startPolling();
-    }
-  } catch (error) {
-    showError('Failed to start bot');
-  }
-}
-
-// Add similar secure implementations for stopBot(), getHistory(), etc.
+});
