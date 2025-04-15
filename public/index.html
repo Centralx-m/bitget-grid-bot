@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitget Grid Bot</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Bitget Grid Bot</h1>
+    
+    <div class="bot-controls">
+      <div class="form-group">
+        <label>Trading Pair:</label>
+        <select id="tradingPair">
+          <option value="BTC/USDT">BTC/USDT</option>
+          <option value="ETH/USDT">ETH/USDT</option>
+          <option value="SOL/USDT">SOL/USDT</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Investment (USDT):</label>
+        <input type="number" id="investment" value="10">
+      </div>
+
+      <div class="form-group">
+        <label>Upper Price:</label>
+        <input type="number" id="upperPrice" value="50000">
+      </div>
+
+      <div class="form-group">
+        <label>Lower Price:</label>
+        <input type="number" id="lowerPrice" value="40000">
+      </div>
+
+      <div class="form-group">
+        <label>Grid Levels:</label>
+        <input type="number" id="gridLevels" value="100">
+      </div>
+
+      <div class="button-group">
+        <button id="startBot" class="btn-start">Start Bot</button>
+        <button id="stopBot" class="btn-stop" disabled>Stop Bot</button>
+      </div>
+    </div>
+
+    <div class="status">
+      <h2>Bot Status: <span id="botStatus">Idle</span></h2>
+    </div>
+
+    <div class="trade-history">
+      <h2>Trade History</h2>
+      <table id="tradeHistory">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Price</th>
+            <th>Amount</th>
+            <th>Profit</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
