@@ -1,23 +1,11 @@
 {
-  "version": 2,
   "builds": [
-    {
-      "src": "api/trade.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/*",
-      "use": "@vercel/static"
-    }
+    {"src": "api/trade.js", "use": "@vercel/node"},
+    {"src": "api/market.js", "use": "@vercel/node"}
   ],
   "routes": [
-    {
-      "src": "/api/trade",
-      "dest": "/api/trade"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
-    }
+    {"src": "/api/trade", "dest": "/api/trade"},
+    {"src": "/api/market", "dest": "/api/market"},
+    {"src": "/(.*)", "dest": "/public/$1"}
   ]
 }
