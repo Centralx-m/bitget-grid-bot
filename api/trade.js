@@ -1,94 +1,66 @@
-const BitgetAPI = require('bitget-api');
-const { v4: uuidv4 } = require('uuid');
+import applyMiddlewares from './middlewares';
+import db from './lib/db';
+import { validateBotConfig } from './middlewares/validator';
 
-// Your Bitget API credentials (should use environment variables in production)
-const API_KEY = 'bg_ffcbb26a743c6f3617a03e4edb87aa3f';
-const API_SECRET = '......'; // Replace with your actual secret
-const PASSPHRASE = '......'; // Replace with your actual passphrase
-
-// In-memory storage for demo purposes (use a database in production)
-let activeBots = {};
-let tradeHistory = {};
-
-const client = new BitgetAPI({
-  apiKey: API_KEY,
-  secret: API_SECRET,
-  passphrase: PASSPHRASE
-});
-
-module.exports = async (req, res) => {
+async function handler(req, res) {
   try {
-    const { action } = req.query || req.body;
-    
+    const { action } = req.method === 'GET' ? req.query : req.body;
+    const userId = req.headers['x-user-id']; // From authentication
+
     if (req.method === 'POST' && action === 'start') {
-      // Start bot logic
-      const { tradingPair, investment, upperPrice, lowerPrice, gridLevels } = req.body;
-      
-      // Validate inputs
-      if (!tradingPair || !investment || !upperPrice || !lowerPrice || !gridLevels) {
-        return res.status(400).json({ success: false, message: 'Missing required parameters' });
+      const validation = validateBotConfig(req.body);
+      if (validation.error) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: validation.error
+        });
       }
-      
-      const botId = uuidv4();
-      
-      // Calculate grid parameters
-      const priceRange = upperPrice - lowerPrice;
-      const gridSize = priceRange / gridLevels;
-      const investmentPerGrid = investment / gridLevels;
-      
-      // Store bot configuration
-      activeBots[botId] = {
-        tradingPair,
-        investment,
-        upperPrice,
-        lowerPrice,
-        gridLevels,
-        gridSize,
-        investmentPerGrid,
+
+      const botConfig = {
+        ...validation.value,
+        userId,
         active: true,
         createdAt: new Date().toISOString()
       };
+
+      await db.saveBotConfig(userId, botConfig);
       
-      // Initial grid setup (simplified for demo)
-      // In a real implementation, you would place initial orders here
-      
-      return res.json({ 
-        success: true, 
-        botId,
-        message: 'Grid bot started successfully'
-      });
-      
-    } else if (req.method === 'POST' && action === 'stop') {
-      // Stop bot logic
-      const botIds = Object.keys(activeBots);
-      
-      if (botIds.length === 0) {
-        return res.json({ success: false, message: 'No active bots to stop' });
-      }
-      
-      // In a real implementation, you would cancel all open orders here
-      for (const botId of botIds) {
-        activeBots[botId].active = false;
-      }
-      
-      return res.json({ 
-        success: true, 
-        message: 'All bots stopped successfully'
-      });
-      
-    } else if (req.method === 'GET' && action === 'history') {
-      // Get trade history
       return res.json({
         success: true,
-        history: Object.values(tradeHistory).sort((a, b) => new Date(b.time) - new Date(a.time))
+        message: 'Bot started successfully',
+        botId: userId // Using user ID as bot identifier
       });
+
+    } else if (req.method === 'POST' && action === 'stop') {
+      await db.saveBotConfig(userId, { active: false });
       
+      return res.json({
+        success: true,
+        message: 'Bot stopped successfully'
+      });
+
+    } else if (req.method === 'GET' && action === 'history') {
+      const history = await db.getTradeHistory(userId);
+      return res.json({
+        success: true,
+        history
+      });
+
     } else {
-      return res.status(400).json({ success: false, message: 'Invalid action' });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid action'
+      });
     }
-    
   } catch (error) {
     console.error('API error:', error);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
   }
-};
+}
+
+export default applyMiddlewares(handler);
